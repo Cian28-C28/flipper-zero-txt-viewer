@@ -5,24 +5,18 @@ on:
   pull_request:
     branches: [ main ]
 jobs:
-  build:
+  ufbt-build-action:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build with ufbt
+        uses: flipperdevices/flipperzero-ufbt-action@v0.1
+        id: build-app
         with:
-          python-version: '3.11'
-      - name: Install uFBT
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install ufbt
-      - name: Initialize ufbt
-        run: ufbt init
-      - name: Build app
-        run: ufbt build
-      - name: Upload build artifact
+          sdk-channel: dev
+      - name: Upload app artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: txt-viewer
-          path: build/**
+          name: txt-viewer-${{ steps.build-app.outputs.suffix }}
+          path: ${{ steps.build-app.outputs.fap-artifacts }}
