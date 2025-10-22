@@ -32,8 +32,10 @@ typedef struct {
     size_t favorites_count;
 } TxtViewerApp;
 
+static void load_directory(TxtViewerApp* app, const char* dir_path);
 static void txt_viewer_list_callback(void* ctx, uint32_t index);
 static void txt_viewer_main_menu_callback(void* ctx, uint32_t index);
+static void txt_viewer_add_recent(TxtViewerApp* app, const char* name);
 
 // Load directory listing into list view and store file names
 static void load_directory(TxtViewerApp* app, const char* dir_path) {
@@ -45,20 +47,17 @@ static void load_directory(TxtViewerApp* app, const char* dir_path) {
     app->file_names = NULL;
     app->file_count = 0;
     submenu_reset(app->list_view);
-    
-    // Allocate directory handle
+
     File* dir = storage_file_alloc(app->storage);
     if(storage_dir_open(dir, dir_path)) {
         FileInfo file_info;
         char name[128];
         while(storage_dir_read(dir, &file_info, name, sizeof(name))) {
             if(file_info.type == FileTypeFile) {
-                // store file name
                 FuriString* fname = furi_string_alloc();
                 furi_string_set(fname, name);
                 app->file_names = realloc(app->file_names, (app->file_count + 1) * sizeof(FuriString*));
                 app->file_names[app->file_count] = fname;
-                // add to list view
                 submenu_add_item(app->list_view, name, app->file_count, txt_viewer_list_callback, app);
                 app->file_count++;
             }
@@ -68,7 +67,6 @@ static void load_directory(TxtViewerApp* app, const char* dir_path) {
     storage_file_free(dir);
 }
 
-// Add file name to recents list if not already present
 static void txt_viewer_add_recent(TxtViewerApp* app, const char* name) {
     for(size_t i = 0; i < app->recents_count; i++) {
         if(strcmp(furi_string_get_cstr(app->recents[i]), name) == 0) {
@@ -103,7 +101,7 @@ static void txt_viewer_list_callback(void* ctx, uint32_t index) {
         if(content) {
             content[total_size] = '\0';
             text_box_reset(app->text_box);
-            text_box_set_text(app->text_box, content, false);
+            text_box_set_text(app->text_box, content);
             free(content);
         }
         storage_file_close(file);
@@ -140,7 +138,7 @@ static void txt_viewer_main_menu_callback(void* ctx, uint32_t index) {
         case 3: // Info
         default:
             text_box_reset(app->text_box);
-            text_box_set_text(app->text_box, "TXT Viewer\n\nThis app allows you to view prayers stored in .txt files.\nAdd files to /ext/txt_viewer using QFlipper.\nUse 'Browse' to open files, and mark favorites by pressing OK.", false);
+            text_box_set_text(app->text_box, "TXT Viewer\n\nThis app allows you to view prayers stored in .txt files.\nAdd files to /ext/txt_viewer using QFlipper.\nUse 'Browse' to open files, and mark favorites by pressing OK.");
             view_dispatcher_switch_to_view(app->view_dispatcher, TxtViewerInfo);
             break;
     }
@@ -157,7 +155,6 @@ int32_t txt_viewer_app(void* p) {
     storage_common_mkdir(app->storage, "/ext/txt_viewer");
 
     app->view_dispatcher = view_dispatcher_alloc();
-    view_dispatcher_enable_queue(app->view_dispatcher);
     app->main_menu = submenu_alloc();
     app->list_view = submenu_alloc();
     app->text_box = text_box_alloc();
@@ -175,7 +172,6 @@ int32_t txt_viewer_app(void* p) {
     view_dispatcher_switch_to_view(app->view_dispatcher, TxtViewerMainMenu);
     view_dispatcher_run(app->view_dispatcher);
 
-    // Free file names arrays
     for(size_t i = 0; i < app->file_count; i++) {
         furi_string_free(app->file_names[i]);
     }
