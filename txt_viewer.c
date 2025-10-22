@@ -40,7 +40,7 @@ static void txt_viewer_add_recent(TxtViewerApp* app, const char* name);
 // Load directory listing into list view and store file names
 static void load_directory(TxtViewerApp* app, const char* dir_path) {
     // Free previous file names
-    for(size_t i = 0; i < app->file_count; i++) {
+    for (size_t i = 0; i < app->file_count; i++) {
         furi_string_free(app->file_names[i]);
     }
     free(app->file_names);
@@ -49,11 +49,12 @@ static void load_directory(TxtViewerApp* app, const char* dir_path) {
     submenu_reset(app->list_view);
 
     File* dir = storage_file_alloc(app->storage);
-    if(storage_dir_open(dir, dir_path)) {
+    if (storage_dir_open(dir, dir_path)) {
         FileInfo file_info;
         char name[128];
-        while(storage_dir_read(dir, &file_info, name, sizeof(name))) {
-            if(file_info.type == FileTypeFile) {
+        while (storage_dir_read(dir, &file_info, name, sizeof(name))) {
+            // Only add regular files (ignore directories)
+            if ((file_info.flags & FSF_DIRECTORY) == 0) {
                 FuriString* fname = furi_string_alloc();
                 furi_string_set(fname, name);
                 app->file_names = realloc(app->file_names, (app->file_count + 1) * sizeof(FuriString*));
@@ -68,8 +69,8 @@ static void load_directory(TxtViewerApp* app, const char* dir_path) {
 }
 
 static void txt_viewer_add_recent(TxtViewerApp* app, const char* name) {
-    for(size_t i = 0; i < app->recents_count; i++) {
-        if(strcmp(furi_string_get_cstr(app->recents[i]), name) == 0) {
+    for (size_t i = 0; i < app->recents_count; i++) {
+        if (strcmp(furi_string_get_cstr(app->recents[i]), name) == 0) {
             return;
         }
     }
@@ -83,22 +84,22 @@ static void txt_viewer_add_recent(TxtViewerApp* app, const char* name) {
 // Callback when a file is selected from list
 static void txt_viewer_list_callback(void* ctx, uint32_t index) {
     TxtViewerApp* app = ctx;
-    if(index >= app->file_count) return;
+    if (index >= app->file_count) return;
     const char* name = furi_string_get_cstr(app->file_names[index]);
     char path[256];
     snprintf(path, sizeof(path), "/ext/txt_viewer/%s", name);
     File* file = storage_file_alloc(app->storage);
-    if(storage_file_open(file, path, FS_READ, FS_OPEN_EXISTING)) {
+    if (storage_file_open(file, path, FSAM_READ, FSOM_OPEN_EXISTING)) {
         size_t total_size = 0;
         char* content = NULL;
         char buf[64];
         size_t read;
-        while((read = storage_file_read(file, buf, sizeof(buf))) > 0) {
+        while ((read = storage_file_read(file, buf, sizeof(buf))) > 0) {
             content = realloc(content, total_size + read + 1);
             memcpy(content + total_size, buf, read);
             total_size += read;
         }
-        if(content) {
+        if (content) {
             content[total_size] = '\0';
             text_box_reset(app->text_box);
             text_box_set_text(app->text_box, content);
@@ -114,14 +115,14 @@ static void txt_viewer_list_callback(void* ctx, uint32_t index) {
 // Callback for main menu selections
 static void txt_viewer_main_menu_callback(void* ctx, uint32_t index) {
     TxtViewerApp* app = ctx;
-    switch(index) {
+    switch (index) {
         case 0: // Browse
             load_directory(app, "/ext/txt_viewer");
             view_dispatcher_switch_to_view(app->view_dispatcher, TxtViewerList);
             break;
         case 1: // Recents
             submenu_reset(app->list_view);
-            for(size_t i = 0; i < app->recents_count; i++) {
+            for (size_t i = 0; i < app->recents_count; i++) {
                 const char* name = furi_string_get_cstr(app->recents[i]);
                 submenu_add_item(app->list_view, name, i, txt_viewer_list_callback, app);
             }
@@ -129,7 +130,7 @@ static void txt_viewer_main_menu_callback(void* ctx, uint32_t index) {
             break;
         case 2: // Favorites
             submenu_reset(app->list_view);
-            for(size_t i = 0; i < app->favorites_count; i++) {
+            for (size_t i = 0; i < app->favorites_count; i++) {
                 const char* name = furi_string_get_cstr(app->favorites[i]);
                 submenu_add_item(app->list_view, name, i, txt_viewer_list_callback, app);
             }
@@ -172,15 +173,15 @@ int32_t txt_viewer_app(void* p) {
     view_dispatcher_switch_to_view(app->view_dispatcher, TxtViewerMainMenu);
     view_dispatcher_run(app->view_dispatcher);
 
-    for(size_t i = 0; i < app->file_count; i++) {
+    for (size_t i = 0; i < app->file_count; i++) {
         furi_string_free(app->file_names[i]);
     }
     free(app->file_names);
-    for(size_t i = 0; i < app->recents_count; i++) {
+    for (size_t i = 0; i < app->recents_count; i++) {
         furi_string_free(app->recents[i]);
     }
     free(app->recents);
-    for(size_t i = 0; i < app->favorites_count; i++) {
+    for (size_t i = 0; i < app->favorites_count; i++) {
         furi_string_free(app->favorites[i]);
     }
     free(app->favorites);
