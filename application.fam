@@ -1,0 +1,12 @@
+App(
+    appid="txt_viewer",
+    name="TXT Viewer",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="txt_viewer_app",
+    cdefines=["APP_TXT_VIEWER"],
+    requires=["gui", "dialogs", "storage"],
+    stack_size=2 * 1024,
+    order=20,
+    fap_icon="icons/hex_10px.png",
+    fap_category="Tools",
+)
